@@ -1,9 +1,9 @@
-package by.egoramel.tt.parser;
+package by.egoramel.tt.reader;
 
 import by.egoramel.tt.exception.CustomException;
 
 import java.util.List;
 
 public interface AircraftFileReader {
-    List<String> parseAircraftFile() throws CustomException;
+    List<String> readAircraftFile() throws CustomException;
 }

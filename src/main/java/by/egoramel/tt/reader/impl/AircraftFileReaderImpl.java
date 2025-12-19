@@ -1,7 +1,7 @@
-package by.egoramel.tt.parser.impl;
+package by.egoramel.tt.reader.impl;
 
 import by.egoramel.tt.exception.CustomException;
-import by.egoramel.tt.parser.AircraftFileReader;
+import by.egoramel.tt.reader.AircraftFileReader;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,7 +16,7 @@ public final class AircraftFileReaderImpl implements AircraftFileReader {
     }
 
     @Override
-    public List<String> parseAircraftFile() throws CustomException {
+    public List<String> readAircraftFile() throws CustomException {
         final Path filePath = Path.of(fileUrl);
 
         try {

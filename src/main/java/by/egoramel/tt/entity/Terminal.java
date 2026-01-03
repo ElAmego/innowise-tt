@@ -13,7 +13,7 @@ public final class Terminal {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final int TERMINAL_MAX_CAPACITY = 10000;
     private static final int GATE_QUANTITY = 10;
-    private static final Terminal INSTANCE = new Terminal();
+    private static final Terminal instance = new Terminal();
 
     private final AtomicInteger currentTerminalCapacity;
     private final ArrayDeque<Gate> gates;
@@ -31,12 +31,14 @@ public final class Terminal {
     }
 
     public static Terminal getInstance() {
-        return INSTANCE;
+        return instance;
     }
 
     public Gate occupyGate() throws CustomException {
         LOGGER.debug("Request to occupy gate received.");
         lock.lock();
+
+        Gate gate = null;
 
         try {
             while (gates.isEmpty()) {
@@ -45,16 +47,16 @@ public final class Terminal {
             }
 
             LOGGER.info("Gate occupied, remaining gates: {}.", gates.size());
-            return gates.poll();
+            gate = gates.poll();
         } catch (final InterruptedException e) {
             LOGGER.error("Gate occupation interrupted.");
-            final Thread currentThread = Thread.currentThread();
-            currentThread.interrupt();
-            throw new CustomException(e);
+            Thread.currentThread().interrupt();
         } finally {
             lock.unlock();
             LOGGER.trace("Lock released after gate occupation attempt.");
         }
+
+        return gate;
     }
 
     public void freeGate(final Gate gate) {

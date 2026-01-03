@@ -7,7 +7,6 @@ import org.apache.logging.log4j.Logger;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("unused")
 public final class Aircraft implements Runnable {
@@ -15,7 +14,7 @@ public final class Aircraft implements Runnable {
     private final long aircraftId;
     private final String aircraftName;
     private final int aircraftSize;
-    private final AtomicInteger passengersNumber;
+    private Integer passengersNumber;
     private final AircraftOperation aircraftOperation;
 
     public Aircraft(final long aircraftId, String aircraftName, final int aircraftSize, final int passengersNumber,
@@ -23,39 +22,44 @@ public final class Aircraft implements Runnable {
         this.aircraftId = aircraftId;
         this.aircraftName = aircraftName;
         this.aircraftSize = aircraftSize;
-        this.passengersNumber = new AtomicInteger(passengersNumber);
+        this.passengersNumber = passengersNumber;
         this.aircraftOperation = aircraftOperation;
     }
 
     @Override
     public void run() {
         LOGGER.info("Aircraft {} starting operation: {}.", aircraftName, aircraftOperation);
+        final Terminal terminal = Terminal.getInstance();
+        Gate gate = null;
 
         try {
-            final Terminal terminal = Terminal.getInstance();
-            final Gate gate = terminal.occupyGate();
+            gate = terminal.occupyGate();
             LOGGER.info("Aircraft {} occupied gate {}.", aircraftName, gate);
 
             switch (aircraftOperation) {
                 case LOAD -> loadAircraft();
                 case UNLOAD -> unloadAircraft();
-                default -> throw new CustomException("Invalid type of aircraft operation.");
+                default -> {
+                    LOGGER.error("Invalid type of aircraft operation.");
+                    throw new UnsupportedOperationException("Invalid type of aircraft operation.");
+                }
             }
 
             LOGGER.debug("Aircraft {} freeing gate {}.", aircraftName, gate);
-            terminal.freeGate(gate);
         } catch (final CustomException e) {
             LOGGER.error("Aircraft {}: Custom exception occurred.", aircraftName, e);
-            final Thread currentThread = Thread.currentThread();
-            currentThread.interrupt();
+            Thread.currentThread().interrupt();
+        } finally {
+            if (gate != null) {
+                terminal.freeGate(gate);
+            }
         }
     }
 
     public void loadAircraft() {
         LOGGER.debug("Aircraft {} starting LOAD process.", aircraftName);
         final Terminal terminal = Terminal.getInstance();
-        final int passengersNumberInt = passengersNumber.get();
-        final int necessaryPassengers = aircraftSize - passengersNumberInt;
+        final int necessaryPassengers = aircraftSize - passengersNumber;
 
         if (necessaryPassengers <= 0) {
             LOGGER.info("Aircraft {}: No passengers needed.", aircraftName);
@@ -73,22 +77,21 @@ public final class Aircraft implements Runnable {
 
             LOGGER.info("Aircraft {} boarding passengers.", aircraftName);
             for (int i = 0; i < passedPassengers; i++) {
-                passengersNumber.incrementAndGet();
+                passengersNumber++;
                 TimeUnit.SECONDS.sleep(1);
             }
 
             LOGGER.info("Aircraft {} completed boarding.", aircraftName);
         } catch (final InterruptedException e) {
             LOGGER.warn("Aircraft {}: Loading interrupted.", aircraftName);
-            final Thread currentThread = Thread.currentThread();
-            currentThread.interrupt();
+            Thread.currentThread().interrupt();
         }
     }
 
     public void unloadAircraft() {
         LOGGER.debug("Aircraft {} starting UNLOAD process.", aircraftName);
         final Terminal terminal = Terminal.getInstance();
-        final int passengersNumberInt = passengersNumber.get();
+        final int passengersNumberInt = passengersNumber;
 
         LOGGER.debug("Aircraft {}: current passengers to unload={}.", aircraftName, passengersNumberInt);
         if (passengersNumberInt <= 0) {
@@ -107,7 +110,7 @@ public final class Aircraft implements Runnable {
 
             LOGGER.info("Aircraft {} unloading passengers.", aircraftName);
             for (int i = 0; i < unloadQuantity; i++) {
-                passengersNumber.decrementAndGet();
+                passengersNumber--;
                 TimeUnit.SECONDS.sleep(1);
             }
 
@@ -115,13 +118,12 @@ public final class Aircraft implements Runnable {
 
             LOGGER.info("Aircraft {} loading extra passengers.", aircraftName);
             for (int i = 0; i < extraPassengers; i++) {
-                passengersNumber.incrementAndGet();
+                passengersNumber++;
                 TimeUnit.SECONDS.sleep(1);
             }
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             LOGGER.warn("Aircraft {}: Unloading interrupted", aircraftName);
-            final Thread currentThread = Thread.currentThread();
-            currentThread.interrupt();
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -137,7 +139,7 @@ public final class Aircraft implements Runnable {
         return aircraftSize;
     }
 
-    public AtomicInteger getPassengersNumber() {
+    public Integer getPassengersNumber() {
         return passengersNumber;
     }
 
@@ -152,7 +154,7 @@ public final class Aircraft implements Runnable {
         final Aircraft aircraft = (Aircraft) o;
         return aircraftId == aircraft.aircraftId && aircraftSize == aircraft.aircraftSize
                 && Objects.equals(aircraftName, aircraft.aircraftName)
-                && (passengersNumber.get() == aircraft.passengersNumber.get())
+                && (Objects.equals(passengersNumber, aircraft.passengersNumber))
                 && aircraftOperation == aircraft.aircraftOperation;
     }
 
